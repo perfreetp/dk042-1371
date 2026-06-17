@@ -98,7 +98,13 @@ export default function Inspection() {
               </div>
             </div>
 
-            <div className="flex gap-6 justify-center">
+            <div className="flex gap-6 justify-center flex-wrap">
+              <button
+                onClick={() => navigate("/inspection/detail")}
+                className="btn-secondary flex items-center gap-3"
+              >
+                📋 查看检查详情
+              </button>
               <button
                 onClick={() => navigate("/rollcall")}
                 className="btn-success flex items-center gap-3 text-2xl px-12 py-5"

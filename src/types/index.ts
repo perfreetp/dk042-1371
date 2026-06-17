@@ -59,15 +59,20 @@ export interface RollcallRecord {
   completedAt?: Date;
 }
 
+export type ReviewMode = "signature_only" | "release";
+
 export interface ReviewRecord {
   id: string;
   busId: string;
   createdAt: Date;
   reviewerName: string;
   signature: string;
+  mode: ReviewMode;
   inspectionPassed: boolean;
   rollcallPassed: boolean;
   passed: boolean;
+  releasedAt?: Date;
+  notes?: string;
 }
 
 export const LEFTOVER_ITEMS = [

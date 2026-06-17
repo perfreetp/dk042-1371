@@ -9,8 +9,14 @@ import { useRollcallStore } from "@/store/useRollcallStore";
 export default function Home() {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const { record: inspectionRecord, isAllAreasChecked } = useInspectionStore();
-  const { isRollcallComplete, getTotalCount, getCompletedCount } = useRollcallStore();
+  const [autoRedirectShown, setAutoRedirectShown] = useState(false);
+  const {
+    record: inspectionRecord,
+    isAllAreasChecked,
+    selectedClassIds,
+  } = useInspectionStore();
+  const { isRollcallComplete, getTotalCount, getCompletedCount } =
+    useRollcallStore();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -18,6 +24,22 @@ export default function Home() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (mockBus.status === "stopped" && !autoRedirectShown) {
+      const timer = setTimeout(() => {
+        setAutoRedirectShown(true);
+        navigate("/inspection");
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [autoRedirectShown, navigate]);
+
+  useEffect(() => {
+    if (mockBus.status === "stopped" && inspectionRecord && !inspectionRecord.completed && !autoRedirectShown) {
+      setAutoRedirectShown(true);
+    }
+  }, [inspectionRecord, autoRedirectShown]);
 
   const inspectionDone = inspectionRecord?.completed || isAllAreasChecked();
   const rollcallDone =
