@@ -7,12 +7,22 @@ import PendingList from "@/components/rollcall/PendingList";
 import { useRollcallStore } from "@/store/useRollcallStore";
 import { useInspectionStore } from "@/store/useInspectionStore";
 import { mockClasses } from "@/data/classes";
-import { CHILD_STATUS_OPTIONS, type ChildStatus } from "@/types";
-import { Check, ArrowRight, RotateCcw, Users, Filter, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { CHILD_STATUS_OPTIONS, type ChildStatus, type Child } from "@/types";
+import {
+  Check,
+  ArrowRight,
+  RotateCcw,
+  Users,
+  Filter,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 type StatusFilter = "all" | ChildStatus;
 
 export default function Rollcall() {
+  // ==================== 1. 顶层Hook调用（顺序必须固定）====================
   const navigate = useNavigate();
   const {
     record,
@@ -26,10 +36,75 @@ export default function Rollcall() {
   } = useRollcallStore();
   const { selectedClassIds: inspectionClasses } = useInspectionStore();
 
+  // 3个useState —— 必须在任何条件return之前
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [focusClassId, setFocusClassId] = useState<string | null>(null);
   const [showPendingOnly, setShowPendingOnly] = useState(false);
 
+  // 预取数据（即使record为null也要调用getFilteredChildren给空数组兜底）
+  const children: Child[] = record ? getFilteredChildren() : [];
+  const pendingChildren: Child[] = record ? getPendingChildren() : [];
+  const totalCount = record ? getTotalCount() : 0;
+  const completedCount = record ? getCompletedCount() : 0;
+  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const rollcallDone = record ? isRollcallComplete() : false;
+
+  // 班级列表（record存在时按record.classIds过滤）
+  const classesToShow = useMemo(() => {
+    if (record && record.classIds.length > 0) {
+      return mockClasses.filter((c) => record.classIds.includes(c.id));
+    }
+    return inspectionClasses.length > 0
+      ? mockClasses.filter((c) => inspectionClasses.includes(c.id))
+      : mockClasses;
+  }, [record, inspectionClasses]);
+
+  // 班级快速统计
+  const classQuickStats = useMemo(() => {
+    return classesToShow.map((cls) => {
+      const classKids = children.filter((c) => c.classId === cls.id);
+      const pending = classKids.filter((c) => c.status === "pending").length;
+      return { ...cls, total: classKids.length, pending };
+    });
+  }, [children, classesToShow]);
+
+  // 筛选结果
+  const displayChildren = useMemo(() => {
+    let result = children;
+    if (focusClassId) {
+      result = result.filter((c) => c.classId === focusClassId);
+    }
+    if (showPendingOnly) {
+      result = result.filter((c) => c.status === "pending");
+    } else if (statusFilter !== "all") {
+      result = result.filter((c) => c.status === statusFilter);
+    }
+    return result;
+  }, [children, focusClassId, statusFilter, showPendingOnly]);
+
+  // 状态筛选选项
+  const filterOptions: {
+    value: StatusFilter;
+    label: string;
+    icon: string;
+    count: number;
+  }[] = [
+    { value: "all", label: "全部", icon: "👥", count: children.length },
+    {
+      value: "pending",
+      label: "未交接",
+      icon: "⏳",
+      count: pendingChildren.length,
+    },
+    ...CHILD_STATUS_OPTIONS.map((opt) => ({
+      value: opt.value as ChildStatus,
+      label: opt.label,
+      icon: opt.icon,
+      count: children.filter((c) => c.status === opt.value).length,
+    })),
+  ];
+
+  // ==================== 2. 视图1：未开始点名 → 班级选择 ====================
   if (!record) {
     return (
       <div className="min-h-screen flex flex-col bg-cream">
@@ -39,16 +114,15 @@ export default function Rollcall() {
     );
   }
 
-  const children = getFilteredChildren();
-  const pendingChildren = getPendingChildren();
-  const totalCount = getTotalCount();
-  const completedCount = getCompletedCount();
-  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-
-  if (isRollcallComplete() && record.completed) {
+  // ==================== 3. 视图2：点名已完成 ====================
+  if (rollcallDone && record.completed) {
     return (
       <div className="min-h-screen flex flex-col bg-cream">
-        <PageHeader title="点名完成" subtitle="所有儿童已完成交接确认" showBack={false} />
+        <PageHeader
+          title="点名完成"
+          subtitle="所有儿童已完成交接确认"
+          showBack={false}
+        />
         <div className="flex-1 flex items-center justify-center p-10">
           <div className="text-center max-w-3xl">
             <div className="w-48 h-48 mx-auto bg-gradient-to-br from-success-400 to-teal-500 rounded-full flex items-center justify-center shadow-2xl mb-10 animate-bounce-slow">
@@ -82,7 +156,7 @@ export default function Rollcall() {
               })}
             </div>
 
-            <div className="flex gap-6 justify-center">
+            <div className="flex gap-6 justify-center flex-wrap">
               <button
                 onClick={() => navigate("/review")}
                 className="btn-success flex items-center gap-3 text-2xl px-12 py-5"
@@ -92,6 +166,9 @@ export default function Rollcall() {
               </button>
               <button
                 onClick={() => {
+                  setStatusFilter("all");
+                  setFocusClassId(null);
+                  setShowPendingOnly(false);
                   resetRollcall();
                 }}
                 className="btn-secondary flex items-center gap-3"
@@ -109,42 +186,7 @@ export default function Rollcall() {
     );
   }
 
-  const classesToShow = record.classIds.length > 0
-    ? mockClasses.filter((c) => record.classIds.includes(c.id))
-    : mockClasses;
-
-  const filterOptions: { value: StatusFilter; label: string; icon: string; count: number }[] = [
-    { value: "all", label: "全部", icon: "👥", count: children.length },
-    { value: "pending", label: "未交接", icon: "⏳", count: pendingChildren.length },
-    ...CHILD_STATUS_OPTIONS.map((opt) => ({
-      value: opt.value as ChildStatus,
-      label: opt.label,
-      icon: opt.icon,
-      count: children.filter((c) => c.status === opt.value).length,
-    })),
-  ];
-
-  const classQuickStats = useMemo(() => {
-    return classesToShow.map((cls) => {
-      const classKids = children.filter((c) => c.classId === cls.id);
-      const pending = classKids.filter((c) => c.status === "pending").length;
-      return { ...cls, total: classKids.length, pending };
-    });
-  }, [children, classesToShow]);
-
-  const displayChildren = useMemo(() => {
-    let result = children;
-    if (focusClassId) {
-      result = result.filter((c) => c.classId === focusClassId);
-    }
-    if (showPendingOnly) {
-      result = result.filter((c) => c.status === "pending");
-    } else if (statusFilter !== "all") {
-      result = result.filter((c) => c.status === statusFilter);
-    }
-    return result;
-  }, [children, focusClassId, statusFilter, showPendingOnly]);
-
+  // ==================== 4. 视图3：点名进行中列表 ====================
   return (
     <div className="min-h-screen flex flex-col bg-cream">
       <PageHeader
@@ -154,6 +196,7 @@ export default function Rollcall() {
 
       <div className="p-8 flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto">
+          {/* 进度条 */}
           <div className="card mb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-2xl font-bold text-navy-500">点名进度</h3>
@@ -169,6 +212,7 @@ export default function Rollcall() {
             </div>
           </div>
 
+          {/* 快速筛选区 */}
           <div className="card mb-6 bg-primary-50/50 border-2 border-primary-100">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-xl font-bold text-primary-700 flex items-center gap-2">
@@ -188,88 +232,123 @@ export default function Rollcall() {
             </div>
 
             <div className="space-y-5">
+              {/* 状态筛选按钮 */}
               <div>
-                <p className="text-sm text-gray-500 mb-3 font-medium">按状态筛选：</p>
+                <p className="text-sm text-gray-500 mb-3 font-medium">
+                  按状态筛选：
+                </p>
                 <div className="flex flex-wrap gap-3">
-                  {filterOptions.map((opt) => (
-                    <button
-                      key={opt.value}
-                      onClick={() => {
-                        setStatusFilter(opt.value);
-                        setShowPendingOnly(opt.value === "pending");
-                      }}
-                      className={`px-6 py-3 rounded-2xl text-xl font-bold transition-all flex items-center gap-2
-                        ${(statusFilter === opt.value || (showPendingOnly && opt.value === "pending"))
-                          ? "bg-primary-500 text-white shadow-lg scale-105"
-                          : "bg-white text-navy-500 hover:bg-primary-100 border-2 border-gray-200"
-                        }`}
-                    >
-                      <span className="text-2xl">{opt.icon}</span>
-                      {opt.label}
-                      <span
-                        className={`ml-1 px-3 py-1 rounded-full text-lg ${
-                          (statusFilter === opt.value || (showPendingOnly && opt.value === "pending"))
+                  {filterOptions.map((opt) => {
+                    const active =
+                      statusFilter === opt.value ||
+                      (showPendingOnly && opt.value === "pending");
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => {
+                          if (opt.value === "pending") {
+                            setStatusFilter("all");
+                            setShowPendingOnly(true);
+                          } else {
+                            setStatusFilter(opt.value);
+                            setShowPendingOnly(false);
+                          }
+                        }}
+                        className={`px-6 py-3 rounded-2xl text-xl font-bold transition-all flex items-center gap-2
+                          ${active
+                            ? "bg-primary-500 text-white shadow-lg scale-105"
+                            : "bg-white text-navy-500 hover:bg-primary-100 border-2 border-gray-200"
+                          }`}
+                      >
+                        <span className="text-2xl">{opt.icon}</span>
+                        {opt.label}
+                        <span
+                          className={`ml-1 px-3 py-1 rounded-full text-lg ${active
                             ? "bg-white/20 text-white"
                             : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {opt.count}
-                      </span>
-                    </button>
-                  ))}
+                          }`}
+                        >
+                          {opt.count}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
+              {/* 班级快捷筛选 */}
               <div>
-                <p className="text-sm text-gray-500 mb-3 font-medium">按班级查看（点击查看未完成）：</p>
+                <p className="text-sm text-gray-500 mb-3 font-medium">
+                  按班级查看（点击查看未完成）：
+                </p>
                 <div className="flex flex-wrap gap-3">
-                  {classQuickStats.map((cls) => (
-                    <button
-                      key={cls.id}
-                      onClick={() => {
-                        setFocusClassId(focusClassId === cls.id ? null : cls.id);
-                        setShowPendingOnly(true);
-                      }}
-                      className={`px-5 py-3 rounded-2xl text-lg font-bold transition-all flex items-center gap-3 border-2
-                        ${focusClassId === cls.id
-                          ? "bg-white shadow-lg scale-105"
-                          : "bg-white/70 hover:bg-white"
-                        }`}
-                      style={{
-                        borderColor: focusClassId === cls.id ? cls.color : "transparent",
-                      }}
-                    >
-                      <span
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-base font-bold"
-                        style={{ backgroundColor: cls.color }}
+                  {classQuickStats.map((cls) => {
+                    const focused = focusClassId === cls.id;
+                    return (
+                      <button
+                        key={cls.id}
+                        onClick={() => {
+                          if (focused) {
+                            setFocusClassId(null);
+                            setShowPendingOnly(false);
+                          } else {
+                            setFocusClassId(cls.id);
+                            setShowPendingOnly(true);
+                          }
+                        }}
+                        className={`px-5 py-3 rounded-2xl text-lg font-bold transition-all flex items-center gap-3 border-2
+                          ${focused
+                            ? "bg-white shadow-lg scale-105"
+                            : "bg-white/70 hover:bg-white"
+                          }`}
+                        style={{
+                          borderColor: focused ? cls.color : "transparent",
+                        }}
                       >
-                        {cls.name.slice(0, 2)}
-                      </span>
-                      <span style={{ color: cls.color }}>{cls.name}</span>
-                      <span className={`px-3 py-1 rounded-xl text-sm font-bold ${
-                        cls.pending > 0
-                          ? "bg-warning-100 text-warning-700"
-                          : "bg-success-100 text-success-700"
-                      }`}>
-                        {cls.pending > 0 ? `剩${cls.pending}` : "已完成"}
-                      </span>
-                      {focusClassId === cls.id ? (
-                        <ChevronUp className="w-5 h-5" style={{ color: cls.color }} />
-                      ) : (
-                        <ChevronDown className="w-5 h-5" style={{ color: cls.color }} />
-                      )}
-                    </button>
-                  ))}
+                        <span
+                          className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-base font-bold"
+                          style={{ backgroundColor: cls.color }}
+                        >
+                          {cls.name.slice(0, 2)}
+                        </span>
+                        <span style={{ color: cls.color }}>{cls.name}</span>
+                        <span
+                          className={`px-3 py-1 rounded-xl text-sm font-bold ${cls.pending > 0
+                            ? "bg-warning-100 text-warning-700"
+                            : "bg-success-100 text-success-700"
+                          }`}
+                        >
+                          {cls.pending > 0 ? `剩${cls.pending}` : "已完成"}
+                        </span>
+                        {focused ? (
+                          <ChevronUp
+                            className="w-5 h-5"
+                            style={{ color: cls.color }}
+                          />
+                        ) : (
+                          <ChevronDown
+                            className="w-5 h-5"
+                            style={{ color: cls.color }}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            {(statusFilter !== "all" || focusClassId || showPendingOnly) && (
+            {/* 当前筛选提示 */}
+            {(statusFilter !== "all" ||
+              focusClassId ||
+              showPendingOnly) && (
               <div className="mt-5 p-4 bg-white rounded-2xl flex items-center gap-4">
                 <AlertCircle className="w-6 h-6 text-primary-500 flex-shrink-0" />
                 <p className="text-lg text-navy-500">
                   当前筛选结果：共显示
-                  <span className="font-bold text-2xl text-primary-600 mx-2">{displayChildren.length}</span>
+                  <span className="font-bold text-2xl text-primary-600 mx-2">
+                    {displayChildren.length}
+                  </span>
                   名儿童
                   {focusClassId && (
                     <>
@@ -279,17 +358,36 @@ export default function Rollcall() {
                       </span>
                     </>
                   )}
-                  {showPendingOnly && <span className="font-bold text-warning-600 mx-1">· 仅未交接</span>}
+                  {showPendingOnly && (
+                    <span className="font-bold text-warning-600 mx-1">
+                      · 仅未交接
+                    </span>
+                  )}
+                  {!showPendingOnly && statusFilter !== "all" && (
+                    <>
+                      ，状态：
+                      <span className="font-bold mx-1">
+                        {
+                          filterOptions.find((f) => f.value === statusFilter)
+                            ?.label
+                        }
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
             )}
           </div>
 
-          {pendingChildren.length > 0 && !showPendingOnly && statusFilter === "all" && !focusClassId && (
-            <PendingList />
-          )}
+          {/* 未交接儿童汇总（非筛选模式才显示） */}
+          {pendingChildren.length > 0 &&
+            !showPendingOnly &&
+            statusFilter === "all" &&
+            !focusClassId && <PendingList />}
 
+          {/* 儿童列表 */}
           {focusClassId || statusFilter !== "all" || showPendingOnly ? (
+            // 筛选模式：单列表展示
             <div className="card">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold text-navy-500">
@@ -322,6 +420,7 @@ export default function Rollcall() {
               )}
             </div>
           ) : (
+            // 非筛选模式：按班级分组
             <div className="space-y-6">
               {classesToShow.map((cls) => {
                 const classChildren = displayChildren.filter(
@@ -331,7 +430,8 @@ export default function Rollcall() {
                 const completedInClass = classChildren.filter(
                   (c) => c.status !== "pending"
                 ).length;
-                const pendingInClass = classChildren.length - completedInClass;
+                const pendingInClass =
+                  classChildren.length - completedInClass;
 
                 return (
                   <div key={cls.id} className="card">
@@ -387,9 +487,13 @@ export default function Rollcall() {
             </div>
           )}
 
+          {/* 底部操作区 */}
           <div className="mt-8 flex justify-center gap-6 flex-wrap">
             <button
               onClick={() => {
+                setStatusFilter("all");
+                setFocusClassId(null);
+                setShowPendingOnly(false);
                 resetRollcall();
               }}
               className="btn-secondary flex items-center gap-3"
@@ -397,7 +501,7 @@ export default function Rollcall() {
               <RotateCcw className="w-6 h-6" />
               重新选择班级
             </button>
-            {isRollcallComplete() && !record.completed && (
+            {rollcallDone && !record.completed && (
               <button
                 onClick={() => completeRollcall()}
                 className="btn-success flex items-center gap-3 text-2xl px-12 py-5"
