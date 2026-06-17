@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+    background: linear-gradient(135deg, #F1FAEE 0%, #FFF7F2 100%);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-500 text-white font-bold rounded-2xl px-8 py-4 text-2xl
+      shadow-lg hover:bg-primary-600 active:scale-95 transition-all duration-150
+      focus:outline-none focus:ring-4 focus:ring-orange-200;
+  }
+
+  .btn-success {
+    @apply bg-success-500 text-white font-bold rounded-2xl px-8 py-4 text-2xl
+      shadow-lg hover:bg-success-600 active:scale-95 transition-all duration-150
+      focus:outline-none focus:ring-4 focus:ring-teal-200;
+  }
+
+  .btn-warning {
+    @apply bg-warning-500 text-white font-bold rounded-2xl px-8 py-4 text-2xl
+      shadow-lg hover:bg-warning-600 active:scale-95 transition-all duration-150
+      focus:outline-none focus:ring-4 focus:ring-red-200;
+  }
+
+  .btn-secondary {
+    @apply bg-navy-500 text-white font-bold rounded-2xl px-6 py-3 text-xl
+      shadow-lg hover:bg-navy-600 active:scale-95 transition-all duration-150
+      focus:outline-none focus:ring-4 focus:ring-blue-100;
+  }
+
+  .card {
+    @apply bg-white rounded-3xl shadow-xl p-6;
+  }
+
+  .big-number-btn {
+    @apply w-20 h-20 rounded-full bg-white text-4xl font-bold text-navy-500
+      shadow-lg hover:bg-primary-50 hover:text-primary-600
+      active:scale-90 transition-all duration-100 flex items-center justify-center
+      border-4 border-primary-100;
+  }
+
+  .big-number-btn.active {
+    @apply bg-primary-500 text-white border-primary-600 shadow-xl;
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .animate-flash {
+    animation: flash 0.5s ease-in-out infinite;
+  }
+}
+
+@keyframes flash {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
