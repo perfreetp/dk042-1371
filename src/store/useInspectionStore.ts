@@ -144,6 +144,7 @@ export const useInspectionStore = create<InspectionState>((set, get) => ({
     get().updateAreaResult(currentArea.id, {
       checked: true,
       checkedAt: new Date(),
+      inspectorName: record.inspectorName,
     });
   },
 

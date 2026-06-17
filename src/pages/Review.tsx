@@ -20,6 +20,9 @@ import {
   XCircle,
   CheckCircle2,
   ArrowRight,
+  ClipboardCheck,
+  Users,
+  ChevronRight,
 } from "lucide-react";
 import type { ReviewRecord } from "@/types";
 
@@ -36,11 +39,16 @@ export default function Review() {
     setReviewerName,
     records,
   } = useReviewStore();
-  const { isAllAreasChecked, historyRecords: inspectionHistory } = useInspectionStore();
+  const {
+    isAllAreasChecked,
+    historyRecords: inspectionHistory,
+    record: inspectionRecord,
+  } = useInspectionStore();
   const {
     isRollcallComplete,
     getTotalCount,
     historyRecords: rollcallHistory,
+    record: rollcallRecord,
   } = useRollcallStore();
 
   const [step, setStep] = useState<Step>(lastReviewResult ? "result" : "status");
@@ -402,6 +410,235 @@ export default function Review() {
                 <div className="bg-warning-500 text-white px-8 py-4 rounded-2xl animate-pulse">
                   <p className="text-xl font-bold">请联系随车老师确认</p>
                 </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-6 mb-8">
+            <div
+              className={`card border-4 transition-all ${
+                inspectionPassed
+                  ? "border-success-200 bg-gradient-to-br from-success-50 to-white"
+                  : "border-warning-200 bg-gradient-to-br from-warning-50 to-white"
+              }`}
+            >
+              <div className="flex items-center gap-4 mb-5">
+                <div
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-md ${
+                    inspectionPassed ? "bg-success-500" : "bg-warning-500"
+                  }`}
+                >
+                  <ClipboardCheck className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-navy-500">最近清车</h4>
+                  <p className="text-sm text-gray-500">离车检查记录</p>
+                </div>
+              </div>
+              {inspectionHistory.length > 0 || inspectionRecord ? (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <span
+                      className={`px-4 py-1 rounded-xl text-sm font-bold ${
+                        inspectionPassed
+                          ? "bg-success-100 text-success-700"
+                          : "bg-warning-100 text-warning-700"
+                      }`}
+                    >
+                      {inspectionPassed ? "✓ 已完成" : "⏳ 未完成"}
+                    </span>
+                    {inspectionHistory.length > 0 && (
+                      <button
+                        onClick={() => navigate(`/inspection/detail/${inspectionHistory[0].id}`)}
+                        className="text-primary-600 text-sm font-bold hover:underline flex items-center gap-1"
+                      >
+                        详情
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2 text-lg">
+                    <p className="text-gray-600">
+                      <span className="text-gray-400 mr-2">📊</span>
+                      进度：
+                      <span className="font-bold text-navy-500">
+                        {inspectionRecord
+                          ? `${inspectionRecord.areas.filter(a => a.checked).length}/7`
+                          : inspectionHistory[0]
+                            ? `${inspectionHistory[0].areas.filter(a => a.checked).length}/7`
+                            : "0/7"}
+                      </span>
+                    </p>
+                    <p className="text-gray-600">
+                      <span className="text-gray-400 mr-2">⏰</span>
+                      {inspectionRecord?.createdAt
+                        ? formatDateTime(new Date(inspectionRecord.createdAt))
+                        : inspectionHistory[0]?.createdAt
+                          ? formatDateTime(new Date(inspectionHistory[0].createdAt))
+                          : "暂无记录"}
+                    </p>
+                    {(inspectionRecord || inspectionHistory[0]) && (
+                      <p className="text-gray-600">
+                        <span className="text-gray-400 mr-2">👤</span>
+                        检查人：
+                        <span className="font-bold text-navy-500">
+                          {inspectionRecord?.inspectorName || inspectionHistory[0]?.inspectorName || "—"}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xl text-gray-400 text-center py-6">暂无清车记录</p>
+              )}
+            </div>
+
+            <div
+              className={`card border-4 transition-all ${
+                rollcallPassed
+                  ? "border-success-200 bg-gradient-to-br from-success-50 to-white"
+                  : "border-warning-200 bg-gradient-to-br from-warning-50 to-white"
+              }`}
+            >
+              <div className="flex items-center gap-4 mb-5">
+                <div
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-md ${
+                    rollcallPassed ? "bg-success-500" : "bg-warning-500"
+                  }`}
+                >
+                  <Users className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-navy-500">最近点名</h4>
+                  <p className="text-sm text-gray-500">儿童交接记录</p>
+                </div>
+              </div>
+              {rollcallHistory.length > 0 || rollcallRecord ? (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <span
+                      className={`px-4 py-1 rounded-xl text-sm font-bold ${
+                        rollcallPassed
+                          ? "bg-success-100 text-success-700"
+                          : "bg-warning-100 text-warning-700"
+                      }`}
+                    >
+                      {rollcallPassed ? "✓ 已完成" : "⏳ 进行中"}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-lg">
+                    <p className="text-gray-600">
+                      <span className="text-gray-400 mr-2">👧</span>
+                      儿童：
+                      <span className="font-bold text-navy-500">
+                        {rollcallRecord
+                          ? `${rollcallRecord.children.filter(c => c.status !== "pending").length}/${rollcallRecord.children.length}`
+                          : rollcallHistory[0]
+                            ? `${rollcallHistory[0].children.filter(c => c.status !== "pending").length}/${rollcallHistory[0].children.length}`
+                            : "0/0"}
+                      </span>
+                    </p>
+                    <p className="text-gray-600">
+                      <span className="text-gray-400 mr-2">⏰</span>
+                      {rollcallRecord?.createdAt
+                        ? formatDateTime(new Date(rollcallRecord.createdAt))
+                        : rollcallHistory[0]?.createdAt
+                          ? formatDateTime(new Date(rollcallHistory[0].createdAt))
+                          : "暂无记录"}
+                    </p>
+                    {(rollcallRecord || rollcallHistory[0]) && (
+                      <p className="text-gray-600">
+                        <span className="text-gray-400 mr-2">🏫</span>
+                        班级：
+                        <span className="font-bold text-navy-500">
+                          {(rollcallRecord?.classIds || rollcallHistory[0]?.classIds || []).length}个班
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xl text-gray-400 text-center py-6">暂无点名记录</p>
+              )}
+            </div>
+
+            <div
+              className={`card border-4 transition-all ${
+                records.length > 0 && records[0].passed
+                  ? "border-success-200 bg-gradient-to-br from-success-50 to-white"
+                  : records.length > 0
+                    ? "border-warning-200 bg-gradient-to-br from-warning-50 to-white"
+                    : "border-gray-200 bg-gradient-to-br from-gray-50 to-white"
+              }`}
+            >
+              <div className="flex items-center gap-4 mb-5">
+                <div
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-md ${
+                    records.length > 0
+                      ? records[0].passed
+                        ? "bg-success-500"
+                        : "bg-warning-500"
+                      : "bg-gray-400"
+                  }`}
+                >
+                  <ShieldCheck className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-navy-500">最近放行</h4>
+                  <p className="text-sm text-gray-500">签名/复核记录</p>
+                </div>
+              </div>
+              {records.length > 0 ? (
+                <>
+                  <div className="flex items-center justify-between mb-3">
+                    <span
+                      className={`px-4 py-1 rounded-xl text-sm font-bold ${
+                        records[0].passed
+                          ? "bg-success-100 text-success-700"
+                          : "bg-warning-100 text-warning-700"
+                      }`}
+                    >
+                      {records[0].passed
+                        ? "✓ 正式放行"
+                        : "📝 签名留痕"}
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-lg">
+                    <p className="text-gray-600">
+                      <span className="text-gray-400 mr-2">👤</span>
+                      复核人：
+                      <span className="font-bold text-navy-500">{records[0].reviewerName}</span>
+                    </p>
+                    <p className="text-gray-600">
+                      <span className="text-gray-400 mr-2">⏰</span>
+                      {records[0].releasedAt
+                        ? `放行：${formatDateTime(new Date(records[0].releasedAt))}`
+                        : `签名：${formatDateTime(new Date(records[0].createdAt))}`}
+                    </p>
+                    <div className="flex gap-2 mt-2">
+                      <span
+                        className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                          records[0].inspectionPassed
+                            ? "bg-success-50 text-success-700"
+                            : "bg-warning-50 text-warning-700"
+                        }`}
+                      >
+                        清车 {records[0].inspectionPassed ? "✓" : "✗"}
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                          records[0].rollcallPassed
+                            ? "bg-success-50 text-success-700"
+                            : "bg-warning-50 text-warning-700"
+                        }`}
+                      >
+                        点名 {records[0].rollcallPassed ? "✓" : "✗"}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xl text-gray-400 text-center py-6">暂无复核记录</p>
               )}
             </div>
           </div>

@@ -27,19 +27,16 @@ export default function Home() {
 
   useEffect(() => {
     if (mockBus.status === "stopped" && !autoRedirectShown) {
+      const hasUnfinished = inspectionRecord && !inspectionRecord.completed;
+      const hasSelectedClasses = selectedClassIds.length > 0;
+
       const timer = setTimeout(() => {
         setAutoRedirectShown(true);
         navigate("/inspection");
-      }, 800);
+      }, hasUnfinished ? 400 : 800);
       return () => clearTimeout(timer);
     }
-  }, [autoRedirectShown, navigate]);
-
-  useEffect(() => {
-    if (mockBus.status === "stopped" && inspectionRecord && !inspectionRecord.completed && !autoRedirectShown) {
-      setAutoRedirectShown(true);
-    }
-  }, [inspectionRecord, autoRedirectShown]);
+  }, [autoRedirectShown, navigate, inspectionRecord, selectedClassIds]);
 
   const inspectionDone = inspectionRecord?.completed || isAllAreasChecked();
   const rollcallDone =

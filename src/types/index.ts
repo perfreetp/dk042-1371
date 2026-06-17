@@ -36,6 +36,7 @@ export interface AreaCheckResult {
   leftoverItems: string[];
   checked: boolean;
   checkedAt?: Date;
+  inspectorName?: string;
 }
 
 export interface InspectionRecord {

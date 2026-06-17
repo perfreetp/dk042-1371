@@ -45,13 +45,20 @@ function reviveDates(obj: any): any {
 const persistedState = storage.loadRollcall<any>(null);
 const persistedRecords = storage.loadRecords<PersistedRecords>(defaultRecords);
 
-const initialChildren: Child[] = persistedState?.allChildren
+let initialChildren: Child[] = persistedState?.allChildren
   ? persistedState.allChildren.map(reviveDates)
   : mockChildren;
 
 const initialRecord: RollcallRecord | null = persistedState?.record
   ? reviveDates(persistedState.record)
   : null;
+
+if (initialRecord && initialRecord.children.length > 0) {
+  initialChildren = initialChildren.map((c) => {
+    const match = initialRecord.children.find((rc) => rc.childId === c.id);
+    return match ? { ...c, status: match.status } : c;
+  });
+}
 
 export const useRollcallStore = create<RollcallState>((set, get) => ({
   record: initialRecord,
@@ -141,9 +148,12 @@ export const useRollcallStore = create<RollcallState>((set, get) => ({
   },
 
   getFilteredChildren: () => {
-    const { allChildren, selectedClassIds } = get();
-    if (selectedClassIds.length === 0) return allChildren;
-    return allChildren.filter((c) => selectedClassIds.includes(c.classId));
+    const { allChildren, record, selectedClassIds } = get();
+    const classIds = record && record.classIds.length > 0
+      ? record.classIds
+      : selectedClassIds;
+    if (classIds.length === 0) return allChildren;
+    return allChildren.filter((c) => classIds.includes(c.classId));
   },
 
   getPendingChildren: () => {

@@ -269,6 +269,14 @@ export default function InspectionDetail() {
                             {result?.leftoverItems.length ?? 0} 件
                           </p>
                         </div>
+                        <div className="text-right min-w-[160px]">
+                          <p className="text-lg text-gray-500">检查人</p>
+                          <p className="text-xl font-bold text-navy-500">
+                            {result?.checked
+                              ? result.inspectorName || targetRecord.inspectorName
+                              : "—"}
+                          </p>
+                        </div>
                         <div className="text-right min-w-[180px]">
                           <p className="text-lg text-gray-500">确认时间</p>
                           <p className="text-lg font-bold text-navy-500">
